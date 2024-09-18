@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Header from '../components/Header'
 import CreateNote from '../components/CreateNote'
 import TagList from '../components/TagList'
+import Search from '../components/Search'
 import Calendar from '../components/Calendar'
 import EntryList from '../components/EntryList'
 import { useEntries } from '../contexts/EntriesContext'
@@ -10,15 +11,12 @@ import { useEntries } from '../contexts/EntriesContext'
 export default function Home() {
   const { entries, addEntry, deleteEntry } = useEntries();
   const [filteredEntries, setFilteredEntries] = useState(entries);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7))); // Default to 7 days ago
+  const [endDate, setEndDate] = useState(new Date()); // Default to today
   const [selectedTag, setSelectedTag] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    filterEntries();
-  }, [entries, startDate, endDate, selectedTag]);
-
-  const filterEntries = () => {
+  const filterEntries = useCallback(() => {
     let filtered = entries;
     if (startDate && endDate) {
       filtered = filtered.filter(entry => {
@@ -29,8 +27,19 @@ export default function Home() {
     if (selectedTag && selectedTag !== 'All') {
       filtered = filtered.filter(entry => entry.tag === selectedTag);
     }
+    if (searchTerm.trim()) {
+      const lowercaseSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(entry =>
+        (entry.content || '').toLowerCase().includes(lowercaseSearchTerm) ||
+        (entry.title || '').toLowerCase().includes(lowercaseSearchTerm)
+      );
+    }
     setFilteredEntries(filtered);
-  };
+  }, [entries, startDate, endDate, selectedTag, searchTerm]);
+
+  useEffect(() => {
+    filterEntries();
+  }, [filterEntries]);
 
   const handleCreateNote = (newNote) => {
     addEntry(newNote);
@@ -45,6 +54,10 @@ export default function Home() {
     setSelectedTag(tag);
   };
 
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+  };
+
   return (
     <div className="container">
       <Head>
@@ -53,19 +66,20 @@ export default function Home() {
       </Head>
 
       <Header />
-      
+
       <main>
         <h1>What's on your mind?</h1>
         <p>A place for your thoughts, ideas, and inspiration</p>
-        
+
         <CreateNote onCreateNote={handleCreateNote} />
-        <TagList 
-          entries={entries} 
-          onTagSelect={handleTagSelect} 
+        <TagList
+          entries={entries}
+          onTagSelect={handleTagSelect}
           selectedTag={selectedTag}
         />
-        <Calendar 
-          onDateRangeSelect={handleDateRangeSelect} 
+        <Search onSearch={handleSearch} />
+        <Calendar
+          onDateRangeSelect={handleDateRangeSelect}
           startDate={startDate}
           endDate={endDate}
         />
